@@ -1,3 +1,5 @@
+require_relative 'time_formatter'
+
 class App
 
   PAGE_NOT_FOUND_RESPONSE = {
@@ -7,10 +9,8 @@ class App
 
   FORMAT_NOT_FOUND_RESPONSE = {
     status: 400,
-    body: ["[format] parameter not specified"]
+    body: ["[format] parameter not specified\n"]
   }
-
-  CORRECT_FORMATS = %w[year month day hour minute second]
 
   def call(env)
     response = response(env)
@@ -33,33 +33,10 @@ class App
     query_string.gsub!("format=", "")
     query_string.gsub!("%2C", "\n")
 
-    unknown_formats = []
-    time_str = ""
-
-    current_time = Time.now
-
-    formats = query_string.lines(chomp: true)
-    formats.each { |format|
-      if CORRECT_FORMATS.include?(format)
-        time_str << "-" unless time_str.empty?
-
-        if format == "minute"
-          time_str << current_time.min.to_s
-        elsif format == "second"
-          time_str << current_time.sec.to_s
-        else
-          time_str << current_time.send(format.to_sym).to_s
-        end
-      else
-        unknown_formats << format
-      end
-    }
-
-    unless unknown_formats.empty?
-      error = "Unknown time format #{unknown_formats.to_s}"
-      error.gsub!("\"", "")
-
-      return { status: 400, body: [error << "\n"] }  
+    begin
+      time_str = TimeFormatter.format_time(query_string.lines(chomp: true))  
+    rescue RuntimeError => error
+      return { status: 400, body: [error.message + "\n"] }  
     end
 
     { status: 200, body: [time_str << "\n"] } 
