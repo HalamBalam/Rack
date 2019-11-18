@@ -1,35 +1,52 @@
 class TimeFormatter
 
-  CORRECT_FORMATS = %w[year month day hour minute second]
+  attr_reader :result
 
-  def self.format_time(formats, time = nil)
-    time ||= Time.now
+  CORRECT_FORMATS = {'year' => '%Y',
+    'month' => '%m',
+    'day' => '%d',
+    'hour' => '%H',
+    'minute' => '%M',
+    'second' => '%S'
+  }.freeze
 
-    result = ""
-    unknown_formats = []
+  def initialize(formats, time = nil)
+    @formats = formats
+    @time = time || Time.now
+    @success = false  
+  end
 
-    formats.each { |format|
+  def call
+    parse_result = parse_time
+
+    @success = parse_result[:unknown_formats].empty?
+
+    unless @success
+      @result = "Unknown time format #{parse_result[:unknown_formats].to_s}"
+      @result.gsub!("\"", "")
+      return  
+    end
+
+    @result = @time.strftime(parse_result[:time_params])
+  end
+
+  def success?
+    @success
+  end
+
+  private
+
+  def parse_time
+    result = { time_params: "", unknown_formats: [] }
+
+    @formats.each { |format|
       if CORRECT_FORMATS.include?(format)
-        result << "-" unless result.empty?
-
-        if format == "minute"
-          result << time.min.to_s
-        elsif format == "second"
-          result << time.sec.to_s
-        else
-          result << time.send(format.to_sym).to_s
-        end
+        result[:time_params] << "-" unless result[:time_params].empty?
+        result[:time_params] << CORRECT_FORMATS[format]
       else
-        unknown_formats << format
+        result[:unknown_formats] << format
       end
     }
-
-    unless unknown_formats.empty?
-      error = "Unknown time format #{unknown_formats.to_s}"
-      error.gsub!("\"", "")
-
-      raise error  
-    end
 
     result
   end
